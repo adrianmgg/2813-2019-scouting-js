@@ -1,11 +1,14 @@
 // @ts-check
 
 const tba = require('./bluealliance');
+const fs = require('fs');
 
 const tba_api = new tba.TBA_API('QqZVQeBnh8WkhXyOoKARBVtcOtwVD3Xf4oFJhruhAk2JPZnlqYWE6KWoZGRYRuWd');
 
 const event_id = "2018cafr";
 const our_team_id = "frc2813";
+
+const scouting_data_path = 'scouting_data/';
 
 /**
  * @param {string} team_id 
@@ -26,16 +29,15 @@ async function get_matches_before(team_id, event_id, before_match_number) {
  * @typedef {{match:tba.Match, allies:TeamMatchesMap, opponents:TeamMatchesMap, our_alliance_color:string, opposing_alliance_color:string}} MatchScoutingInfo
  */
 
-/**
- * @returns {Promise<MatchScoutingInfo[]>}
- */
-async function get_scouting_targets() {
+async function create_scouting_data() {
 	let matches = await tba_api.get_matches_by_team_event(our_team_id, event_id);
+	/** @type Promise<MatchScoutingInfo>[] */
 	let match_promises = [];
 	for (let match of matches) {
 		match_promises.push(get_scouting_targets_per_match(match));
 	}
-	return await Promise.all(match_promises);
+	await Promise.all(match_promises);
+	
 }
 
 /**
@@ -43,7 +45,7 @@ async function get_scouting_targets() {
  * @returns {Promise<MatchScoutingInfo>}
  */
 async function get_scouting_targets_per_match(match) {
-	/** @type Object.<string, tba.Match[]> */
+	/** @type {Object.<string, tba.Match[]>} */
 	let allies = {};
 	/** @type Object.<string, tba.Match[]> */
 	let opponents = {};
@@ -76,37 +78,3 @@ async function get_scouting_targets_per_match(match) {
 		opposing_alliance_color: opposing_alliance_color
 	};
 }
-
-
-/**
- * @param {tba.Match[]} matches
- */
-function foo(matches) {
-	let str = '';
-	for (let match of matches) {
-		str += `
-			Match #${match.match_number} @ ${new Date(1000 * match.predicted_time).toTimeString()}`;
-	}
-	return str;
-}
-
-get_scouting_targets().then(matches => {
-	for (let match of matches) {
-		console.log(`\
-match ${match.match.match_number}:`);
-		console.log(`\
-	our alliance (${match.our_alliance_color}):`);
-		for (let ally in match.allies) {
-			console.log(`\
-		team ${ally}:`);
-			console.log(foo(match.allies[ally]));
-		}
-		console.log(`\
-	opposing alliance (${match.opposing_alliance_color}):`);
-		for (let opponent in match.opponents) {
-			console.log(`\
-		team ${opponent}:`);
-			console.log(foo(match.opponents[opponent]));
-		}
-	}
-});

@@ -44,7 +44,7 @@ class TBA_API {
 		let cache_response_path = `${cache_path}/response.json`
 		let cache_info_path = `${cache_path}/cache_info.json`
 		if (fs.existsSync(cache_info_path) && fs.existsSync(cache_response_path)) { //have cached version
-			console.log('had cache file')
+			if (debug) console.log('had cache file')
 			// let cached_response = await fs.promises.readFile(cache_response_path).then(data=>JSON.parse(data));
 			let cached_info = await fs.promises.readFile(cache_info_path).then(data => JSON.parse(data.toString()));
 
@@ -92,17 +92,29 @@ class TBA_API {
 	 * @param {string} team_key
 	 * @param {string} event_key
 	 * @returns {Promise<Match[]>}
+	 * @memberof TBA_API
 	 */
 	async get_matches_by_team_event(team_key, event_key) {
-		return this.tba_request(`team/${team_key}/event/${event_key}/matches`);
+		return (await this.tba_request(`team/${team_key}/event/${event_key}/matches`)).map(data => new Match(data));
+	}
+
+	/**
+	 * @param {string} team_key
+	 * @param {string} event_key
+	 * @returns {Promise<Match_Simple[]>}
+	 * @memberof TBA_API
+	 */
+	async get_matches_by_team_event_simple(team_key, event_key) {
+		return (await this.tba_request(`team/${team_key}/event/${event_key}/matches/simple`)).map(data => new Match_Simple(data));
 	}
 
 	/**
 	 * @param {string} event_key
 	 * @returns {Promise<Match[]>}
+	 * @memberof TBA_API
 	 */
 	async get_matches_by_event(event_key) {
-		return this.tba_request(`event/${event_key}/matches`);
+		return (await this.tba_request(`event/${event_key}/matches`)).map(data => new Match(data));
 	}
 
 	async get_status() {
@@ -110,7 +122,7 @@ class TBA_API {
 	}
 
 	async get_teams_by_page(page_num) {
-		return this.tba_request(`teams/${page_num}`);
+		return (await this.tba_request(`teams/${page_num}`)).map(data => new Team(data));
 	}
 
 	async get_status_by_team_event(team_key, event_key) {
@@ -118,17 +130,158 @@ class TBA_API {
 	}
 }
 
-//#region models
+exports.TBA_API = TBA_API;
 
-/**
- * @param {object[]} matches
- * @returns {Match[]} array of Match objects
- */
-function match_array(matches) {
-	return matches.map(match => new Match(match));
+//#region team
+
+class Team_Simple{
+	constructor(data){
+		/** @type {string} */
+		this.key = data.key;
+
+		/** @type {number} */
+		this.team_number = data.team_number;
+
+		/** @type {string} */
+		this.nickname = data.nickname;
+
+		/** @type {string} */
+		this.name = data.name;
+
+		/** @type {string} */
+		this.city = data.city;
+
+		/** @type {string} */
+		this.state_prov = data.state_prov;
+
+		/** @type {string} */
+		this.country = data.country;
+
+	}
 }
 
-class Match {
+exports.Team_Simple = Team_Simple;
+
+class Team extends Team_Simple{
+	constructor(data) {
+		super(data);
+
+		/** @type {string} */
+		this.address = data.address;
+
+		/** @type {string} */
+		this.postal_code = data.postal_code;
+
+		/** @type {string} */
+		this.gmaps_place_id = data.gmaps_place_id;
+
+		/** @type {string} */
+		this.gmaps_url = data.gmaps_url;
+
+		/** @type {number} */
+		this.lat = data.lat;
+
+		/** @type {number} */
+		this.lng = data.lng;
+
+		/** @type {string} */
+		this.location_name = data.location_name;
+
+		/** @type {string} */
+		this.website = data.website;
+
+		/** @type {number} */
+		this.rookie_year = data.rookie_year;
+
+		/** @type {string} */
+		this.motto = data.motto;
+
+		/** @type {{[year:string]:string}} */
+		this.home_championship = data.home_championship;
+	}
+}
+
+exports.Team = Team;
+
+//#endregion
+
+//#region team event status
+
+class Team_Event_Status{
+	constructor(data){
+		/** @type {Team_Event_Status_rank} */
+		this.qual = new Team_Event_Status_rank(data.qual);
+
+		/** @type {Team_Event_Status_alliance} */
+		this.alliance = new Team_Event_Status_rank(data.alliance);
+
+		/** @type {Team_Event_Status_playoff} */
+		this.playoff = new Team_Event_Status_playoff(data.playoff);
+
+		/**
+		 * An HTML formatted string suitable for display to the user containing the team’s alliance pick status.
+		 * @type {string}
+		 */
+		this.alliance_status_str = data.alliance_status_str;
+
+		/**
+		 * An HTML formatter string suitable for display to the user containing the team’s playoff status.
+		 * @type {string}
+		 */
+		this.playoff_status_str = data.playoff_status_str;
+
+		/**
+		 * An HTML formatted string suitable for display to the user containing the team’s overall status summary of the event.
+		 * @type {string}
+		 */
+		this.overall_status_str = data.overall_status_str;
+
+		/**
+		 * TBA match key for the next match the team is scheduled to play in at this event, or null.
+		 * @type {string}
+		 */
+		this.next_match_key = data.next_match_key;
+
+		/**
+		 * TBA match key for the last match the team played in at this event, or null.
+		 * @type {string}
+		 */
+		this.last_match_key = data.last_match_key;
+
+	}
+}
+
+exports.Team_Event_Status = Team_Event_Status;
+
+class Team_Event_Status_rank{
+	constructor(data){
+		//TODO
+	}
+}
+
+exports.Team_Event_Status_rank = Team_Event_Status_rank;
+
+class Team_Event_Status_alliance{
+	constructor(data){
+		//TODO
+	}
+}
+
+exports.Team_Event_Status_alliance = Team_Event_Status_alliance;
+
+class Team_Event_Status_playoff{
+	constructor(data){
+		//TODO
+	}
+}
+
+exports.Team_Event_Status_playoff = Team_Event_Status_playoff;
+
+//#endregion
+
+//#region match
+
+class Match_Simple {
 	constructor(data) {
 		/** @type string */
 		this.key = data.key;
@@ -148,7 +301,11 @@ class Match {
 			red: new Match_alliance(data.alliances.red),
 		};
 
-		/** @type string */
+		/**
+		 * The color (red/blue) of the winning alliance.
+		 * Will contain an empty string in the event of no winner, or a tie.
+		 * @type string
+		 */
 		this.winning_alliance = data.winning_alliance;
 
 		/** @type string */
@@ -162,6 +319,14 @@ class Match {
 
 		/** @type number */
 		this.predicted_time = data.predicted_time;
+	}
+}
+
+exports.Match_Simple = Match_Simple;
+
+class Match extends Match_Simple {
+	constructor(data) {
+		super(data);
 
 		/** @type number */
 		this.post_result_time = data.post_result_time;
@@ -171,6 +336,8 @@ class Match {
 		this.videos = data.videos;
 	}
 }
+
+exports.Match = Match;
 
 class Match_alliance {
 	constructor(data) {
@@ -190,8 +357,6 @@ class Match_alliance {
 	}
 }
 
-//#endregion
+exports.Match_alliance = Match_alliance;s
 
-exports.TBA_API = TBA_API;
-exports.Match = Match;
-exports.Match_alliance = Match_alliance;
+//#endregion
