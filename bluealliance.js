@@ -158,6 +158,11 @@ class TBA_API {
 		return new Team_Event_Status(await this.tba_request(`team/${team_key}/event/${event_key}/status`));
 	}
 
+	async get_team_info_simple(team_key){
+		if(team_key == null) return null;
+		return new Team_Simple(await this.tba_request(`team/${team_key}/simple`));
+	}
+
 	async get_status() {
 		return this.tba_request(`status`);
 	}

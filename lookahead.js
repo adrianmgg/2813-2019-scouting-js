@@ -18,13 +18,45 @@ or
 auto refresh page (or just content) about every 60 seconds
 */
 
+class Lookahead_Data{
+	constructor(){
+		/** @type {{[team_key:string]:tba.Team_Event_Status}} */
+		this.team_statuses = {};
+		
+		/** @type {{[team_key:string]:tba.Team_Simple}} */
+		this.team_infos = {};
+
+		/** @type {string} */
+		this.ally_color = null;
+
+		/** @type {string} */
+		this.opponent_color = null;
+
+		/** @type {string[]} */
+		this.ally_keys = [];
+		
+		/** @type {string[]} */
+		this.opponent_keys = [];
+		
+		/** @type {string} */
+		this.target_team_key = null;
+
+		/** @type {tba.Match_Simple} */
+		this.next_match = null;
+	}
+}
+
 /**
  * @param {string} team_id
  * @param {string} event_id
- * @returns {Promise<{ally_color:string,opponent_color:string,team_status:tba.Team_Event_Status,next_match:tba.Match_Simple,allies:{[team_key:string]:{status:tba.Team_Event_Status}},opponents:{[team_key:string]:{status:tba.Team_Event_Status}}}>}
+ * @typedef {{status:tba.Team_Event_Status,info:tba.Team_Simple}} Lookahead_Team_Data
+ * @returns {Promise<Lookahead_Data>}
  */
 async function get_lookahead_data(team_id, event_id){
+	let ret = new Lookahead_Data();
+	ret.target_team_key = team_id;
 	let team_status = await tba_api.get_team_status_at_event(team_id, event_id);
+	ret.team_statuses[team_id] = team_status;
 	let next_match;
 	if(team_status != null && team_status.next_match_key != null) {
 		next_match = await tba_api.get_match_simple(team_status.next_match_key);
@@ -34,58 +66,58 @@ async function get_lookahead_data(team_id, event_id){
 		if(matches != null) next_match = matches[matches.length - 1];
 		else throw 'no match';
 	}
+	
+	ret.next_match = next_match;
+	
+	let promises = [];
 
-	console.log('next match:\n',next_match);
-	
-	/** @type {{[team_key:string]:{status:tba.Team_Event_Status}}} */
-	let allies = {};
-	/** @type {{[team_key:string]:{status:tba.Team_Event_Status}}} */
-	let opponents = {};
-	
-	/** @type {string} */
-	let ally_color;
-	/** @type {string} */
-	let opponent_color;
-	
 	for(let color of ['blue','red']){
-		if(next_match.alliances[color].team_keys.includes(team_id)) ally_color = color;
-		else opponent_color = color;
+		if(next_match.alliances[color].team_keys.includes(team_id)) ret.ally_color = color;
+		else ret.opponent_color = color;
+		for(let team of next_match.alliances[color].team_keys){
+			promises.push(
+				tba_api.get_team_status_at_event(team, event_id).then(status => {
+					ret.team_statuses[team] = status;
+				})
+			);
+			promises.push(
+				tba_api.get_team_info_simple(team).then(info => {
+					ret.team_infos[team] = info;
+				})
+			);
+		}
 	}
-	//TODO null check ally color
+	
+	for(let ally of next_match.alliances[ret.ally_color].team_keys) ret.ally_keys.push(ally);
+	for(let opponent of next_match.alliances[ret.opponent_color].team_keys) ret.opponent_keys.push(opponent);
 
-	let status_promises = [];
+	await Promise.all(promises);
 
-	for(let ally of next_match.alliances[ally_color].team_keys){
-		allies[ally] = {status:null};
-		status_promises.push(
-			tba_api.get_team_status_at_event(ally, event_id).then(status=>{
-				allies[ally].status = status
-			})
-		);
-	}
-	for(let opponent of next_match.alliances[opponent_color].team_keys){
-		opponents[opponent] = {status:null};
-		status_promises.push(
-			tba_api.get_team_status_at_event(opponent, event_id).then(status=>{
-				opponents[opponent].status = status
-			})
-		);
-	}
-
-	await Promise.all(status_promises);
-
-	return {
-		ally_color:ally_color,
-		opponent_color:opponent_color,
-		team_status:team_status,
-		next_match:next_match,
-		allies:allies,
-		opponents:opponents
-	};
+	return ret;
 }
 
-get_lookahead_data('frc2813','2018cafr').then(data=>{console.log(JSON.stringify(data,null,2))});
-
-// tba_api.get_matches_by_team_event_simple('frc2813', '2018cafr').then(matches=>{
-// 	console.log(matches);
-// })
+get_lookahead_data('frc2813','2018cafr').then(data=>{
+	if(data == null) {
+		console.error('data is null');
+		return;
+	}
+	else{
+		// console.log(data);
+		let target_team_info = data.team_infos[data.target_team_key];
+		let target_team_status = data.team_statuses[data.target_team_key];
+		console.log(`team ${target_team_info.team_number} - ${target_team_info.nickname}`);
+		console.log(`next match is match #${data.next_match.match_number}`);
+		console.log(`allies:`);
+		for(let key of data.ally_keys){
+			let info = data.team_infos[key];
+			let status = data.team_statuses[key];
+			console.log(`	${status.overall_status_str}`);
+		}
+		console.log(`opponents:`)
+		for(let key of data.opponent_keys){
+			let info = data.team_infos[key];
+			let status = data.team_statuses[key];
+			console.log(`	${status.overall_status_str}`);
+		}
+	}
+});
