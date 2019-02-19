@@ -1,6 +1,8 @@
 //@ts-check
 
 const tba = require("./bluealliance");
+const aaa = require("tba-api-v3client");
+
 
 const tba_api = new tba.TBA_API('ERTVm2R0UrDuhurmGPGzLXRufJ5fEM6EH3nzvAuud3FWYt4GTUNKk69XtbBxZ7Or');
 
@@ -23,7 +25,17 @@ auto refresh page (or just content) about every 60 seconds
  */
 async function get_lookahead_data(team_id, event_id){
 	let team_status = await tba_api.get_team_status_at_event(team_id, event_id);
-	let next_match = await tba_api.get_match_simple(team_status.next_match_key);
+	let next_match;
+	if(team_status != null && team_status.next_match_key != null) {
+		next_match = await tba_api.get_match_simple(team_status.next_match_key);
+	}
+	else{
+		let matches = await tba_api.get_matches_by_team_event_simple(team_id, event_id);
+		if(matches != null) next_match = matches[matches.length - 1];
+		else throw 'no match';
+	}
+
+	console.log('next match:\n',next_match);
 	
 	/** @type {{[team_key:string]:{status:tba.Team_Event_Status}}} */
 	let allies = {};
@@ -36,7 +48,7 @@ async function get_lookahead_data(team_id, event_id){
 	let opponent_color;
 	
 	for(let color of ['blue','red']){
-		if(next_match.alliances.red.team_keys.includes(team_id)) ally_color = color;
+		if(next_match.alliances[color].team_keys.includes(team_id)) ally_color = color;
 		else opponent_color = color;
 	}
 	//TODO null check ally color
@@ -71,3 +83,9 @@ async function get_lookahead_data(team_id, event_id){
 		opponents:opponents
 	};
 }
+
+get_lookahead_data('frc2813','2018cafr').then(data=>{console.log(JSON.stringify(data,null,2))});
+
+// tba_api.get_matches_by_team_event_simple('frc2813', '2018cafr').then(matches=>{
+// 	console.log(matches);
+// })

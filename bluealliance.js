@@ -37,7 +37,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async tba_request(path) {
-		try{
+		// try{
 			let request_url = baseURL + path;
 			let request_options = { headers: { "X-TBA-Auth-Key": this.apiKey } };
 			let cache_path = tbaCacheLocation + path;
@@ -87,10 +87,10 @@ class TBA_API {
 				}), { flag: 'w' });
 				return JSON.parse(response_body);
 			}
-		}
-		catch{
-			return null;
-		}
+		// }
+		// catch{
+		// 	return null;
+		// }
 	}
 
 	/**
@@ -112,7 +112,9 @@ class TBA_API {
 	 */
 	async get_matches_by_team_event_simple(team_key, event_key) {
 		if(team_key == null || event_key == null) return null;
-		return (await this.tba_request(`team/${team_key}/event/${event_key}/matches/simple`)).map(data => new Match_Simple(data));
+		let response = await this.tba_request(`team/${team_key}/event/${event_key}/matches/simple`);
+		if(response == null) return null;
+		else return response.map(data => new Match_Simple(data));
 	}
 
 	/**
@@ -172,6 +174,8 @@ exports.TBA_API = TBA_API;
 
 class Team_Simple{
 	constructor(data){
+		if(data == null) return;
+
 		/** @type {string} */
 		this.key = data.key;
 
@@ -201,6 +205,7 @@ exports.Team_Simple = Team_Simple;
 class Team extends Team_Simple{
 	constructor(data) {
 		super(data);
+		if(data == null) return;
 
 		/** @type {string} */
 		this.address = data.address;
@@ -245,6 +250,7 @@ exports.Team = Team;
 
 class Team_Event_Status{
 	constructor(data){
+		if(data == null) return;
 		/** @type {Team_Event_Status_rank} */
 		this.qual = new Team_Event_Status_rank(data.qual);
 
@@ -291,6 +297,7 @@ exports.Team_Event_Status = Team_Event_Status;
 
 class Team_Event_Status_rank{
 	constructor(data){
+		if(data == null) return;
 		/**
 		 * Number of teams ranked.
 		 * @type {*}
@@ -320,6 +327,7 @@ exports.Team_Event_Status_rank = Team_Event_Status_rank;
 
 class Team_Event_Status_rank_ranking{
 	constructor(data){
+		if(data == null) return;
 		/**
 		 * Number of matches the team was disqualified for.
 		 * @type {number}
@@ -370,6 +378,7 @@ exports.Team_Event_Status_rank_ranking = Team_Event_Status_rank_ranking;
 
 class Team_Event_Status_alliance{
 	constructor(data){
+		if(data == null) return;
 		//TODO
 	}
 }
@@ -378,6 +387,7 @@ exports.Team_Event_Status_alliance = Team_Event_Status_alliance;
 
 class Team_Event_Status_playoff{
 	constructor(data){
+		if(data == null) return;
 		//TODO
 	}
 }
@@ -390,6 +400,7 @@ exports.Team_Event_Status_playoff = Team_Event_Status_playoff;
 
 class Match_Simple {
 	constructor(data) {
+		if(data == null) return;
 		/** @type string */
 		this.key = data.key;
 
@@ -434,6 +445,7 @@ exports.Match_Simple = Match_Simple;
 class Match extends Match_Simple {
 	constructor(data) {
 		super(data);
+		if(data == null) return;
 
 		/** @type number */
 		this.post_result_time = data.post_result_time;
@@ -448,6 +460,7 @@ exports.Match = Match;
 
 class Match_alliance {
 	constructor(data) {
+		if(data == null) return;
 		/** @type number */
 		this.score = data.score;
 		if (data.score == -1) this.score = null;
