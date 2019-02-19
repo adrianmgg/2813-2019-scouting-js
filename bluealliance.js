@@ -117,16 +117,40 @@ class TBA_API {
 		return (await this.tba_request(`event/${event_key}/matches`)).map(data => new Match(data));
 	}
 
+	/**
+	 * @param {string} match_key
+	 * @returns {Promise<Match>}
+	 * @memberof TBA_API
+	 */
+	async get_match(match_key){
+		return new Match(await this.tba_request(`match/${match_key}`));
+	}
+	
+	/**
+	 * @param {string} match_key
+	 * @returns {Promise<Match_Simple>}
+	 * @memberof TBA_API
+	 */
+	async get_match_simple(match_key){
+		return new Match_Simple(await this.tba_request(`match/${match_key}/simple`));
+	}
+
+	/**
+	 * @param {string} team_key
+	 * @param {string} event_key
+	 * @returns {Promise<Team_Event_Status>}
+	 * @memberof TBA_API
+	 */
+	async get_team_status_at_event(team_key, event_key){
+		return new Team_Event_Status(await this.tba_request(`team/${team_key}/event/${event_key}/status`));
+	}
+
 	async get_status() {
 		return this.tba_request(`status`);
 	}
 
 	async get_teams_by_page(page_num) {
 		return (await this.tba_request(`teams/${page_num}`)).map(data => new Team(data));
-	}
-
-	async get_status_by_team_event(team_key, event_key) {
-		return this.tba_request(`team/${team_key}/event/${event_key}/status`);
 	}
 }
 
@@ -225,7 +249,7 @@ class Team_Event_Status{
 		this.alliance_status_str = data.alliance_status_str;
 
 		/**
-		 * An HTML formatter string suitable for display to the user containing the team’s playoff status.
+		 * An HTML formatted string suitable for display to the user containing the team’s playoff status.
 		 * @type {string}
 		 */
 		this.playoff_status_str = data.playoff_status_str;
@@ -255,11 +279,82 @@ exports.Team_Event_Status = Team_Event_Status;
 
 class Team_Event_Status_rank{
 	constructor(data){
-		//TODO
+		/**
+		 * Number of teams ranked.
+		 * @type {*}
+		 */
+		this.num_teams = data.num_teams;
+		
+		/**
+		 * @type {Team_Event_Status_rank_ranking}
+		 */
+		this.ranking = data.ranking;
+		
+		/**
+		 * Ordered list of names corresponding to the elements of the sort_orders array.
+		 * @type {{name:string, precision:number}}
+		 */
+		this.sort_order_info = data.sort_order_info;
+		
+		/**
+		 * @type {*}
+		 */
+		this.status = data.status;
+		
 	}
 }
 
 exports.Team_Event_Status_rank = Team_Event_Status_rank;
+
+class Team_Event_Status_rank_ranking{
+	constructor(data){
+		/**
+		 * Number of matches the team was disqualified for.
+		 * @type {number}
+		 */
+		this.dq = data.dq;
+
+		/**
+		 * Number of matches played.
+		 * @type {number}
+		 */
+		this.matches_played = data.matches_played;
+
+		/**
+		 * For some years, average qualification score. Can be null.
+		 * @type {number}
+		 */
+		this.qual_average = data.qual_average;
+
+		/**
+		 * Relative rank of this team.
+		 * @type {number}
+		 */
+		this.rank = data.rank;
+
+		/**
+		 * A Win-Loss-Tie record for a team, or an alliance.
+		 * @type {*}
+		 */
+		//TODO WLT_Record class
+		this.record = data.record;
+
+		/**
+		 * Ordered list of values used to determine the rank. See the sort_order_info property for the name of each value.
+		 * @type {number[]}
+		 */
+		this.sort_orders = data.sort_orders;
+
+		/**
+		 * TBA team key for this rank.
+		 * @type {string}
+		 */
+		this.team_key = data.team_key;
+
+	}
+}
+
+exports.Team_Event_Status_rank_ranking = Team_Event_Status_rank_ranking;
 
 class Team_Event_Status_alliance{
 	constructor(data){
@@ -295,7 +390,7 @@ class Match_Simple {
 		/** @type number */
 		this.match_number = data.match_number;
 
-		/** @type {{blue:Match_alliance, red:Match_alliance}} */
+		/** @type {{[color:string]:Match_alliance, blue:Match_alliance, red:Match_alliance}} */
 		this.alliances = {
 			blue: new Match_alliance(data.alliances.blue),
 			red: new Match_alliance(data.alliances.red),
@@ -357,6 +452,6 @@ class Match_alliance {
 	}
 }
 
-exports.Match_alliance = Match_alliance;s
+exports.Match_alliance = Match_alliance;
 
 //#endregion
