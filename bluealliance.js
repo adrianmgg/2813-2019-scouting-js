@@ -37,54 +37,59 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async tba_request(path) {
-		let request_url = baseURL + path;
-		let request_options = { headers: { "X-TBA-Auth-Key": this.apiKey } };
-		let cache_path = tbaCacheLocation + path;
-		if (!fs.existsSync(cache_path)) fs.mkdirSync(cache_path, { recursive: true });
-		let cache_response_path = `${cache_path}/response.json`
-		let cache_info_path = `${cache_path}/cache_info.json`
-		if (fs.existsSync(cache_info_path) && fs.existsSync(cache_response_path)) { //have cached version
-			if (debug) console.log('had cache file')
-			// let cached_response = await fs.promises.readFile(cache_response_path).then(data=>JSON.parse(data));
-			let cached_info = await fs.promises.readFile(cache_info_path).then(data => JSON.parse(data.toString()));
+		try{
+			let request_url = baseURL + path;
+			let request_options = { headers: { "X-TBA-Auth-Key": this.apiKey } };
+			let cache_path = tbaCacheLocation + path;
+			if (!fs.existsSync(cache_path)) fs.mkdirSync(cache_path, { recursive: true });
+			let cache_response_path = `${cache_path}/response.json`
+			let cache_info_path = `${cache_path}/cache_info.json`
+			if (fs.existsSync(cache_info_path) && fs.existsSync(cache_response_path)) { //have cached version
+				if (debug) console.log('had cache file')
+				// let cached_response = await fs.promises.readFile(cache_response_path).then(data=>JSON.parse(data));
+				let cached_info = await fs.promises.readFile(cache_info_path).then(data => JSON.parse(data.toString()));
 
-			// if(new Date(cached_info.valid_until) < new Date()){
-			// 	console.log('max-age has not yet passed, returning cached file');
-			// 	return fs.promises.readFile(cache_response_path).then(data=>JSON.parse(data));
-			// }
+				// if(new Date(cached_info.valid_until) < new Date()){
+				// 	console.log('max-age has not yet passed, returning cached file');
+				// 	return fs.promises.readFile(cache_response_path).then(data=>JSON.parse(data));
+				// }
 
-			request_options.headers['If-Modified-Since'] = cached_info.last_modified;
-			let [response, response_body] = await httpsGetPromise(request_url, request_options);
-			if (response.statusCode == 304) { // cache is still fine
-				if (debug) console.log('cache still fine, returning cached file');
-				return fs.promises.readFile(cache_response_path).then(data => JSON.parse(data.toString()));
+				request_options.headers['If-Modified-Since'] = cached_info.last_modified;
+				let [response, response_body] = await httpsGetPromise(request_url, request_options);
+				if (response.statusCode == 304) { // cache is still fine
+					if (debug) console.log('cache still fine, returning cached file');
+					return fs.promises.readFile(cache_response_path).then(data => JSON.parse(data.toString()));
+				}
+				else if (response.statusCode == 200) {
+					if (debug) console.log('cache outdated, updating cache');
+					fs.promises.writeFile(cache_response_path, response_body, { flag: 'w' });
+					fs.promises.writeFile(cache_info_path, JSON.stringify({
+						last_modified: response.headers['last-modified'],
+					}), { flag: 'w' });
+					return JSON.parse(response_body);
+				}
+				else {
+					console.error(`status code: ${response.statusCode}`);
+					return null;
+				}
 			}
-			else if (response.statusCode == 200) {
-				if (debug) console.log('cache outdated, updating cache');
+			else { // don't have cached version
+				if (debug) console.log('no cache file');
+				let [response, response_body] = await httpsGetPromise(request_url, request_options);
 				fs.promises.writeFile(cache_response_path, response_body, { flag: 'w' });
+				// let maxAge = parseFloat(response.headers['cache-control'].match(/max-age=(?<maxage>[0-9]+)/).groups.maxage);
+				// let validUntil = new Date();
+				// console.log(maxAge);
+				// validUntil.setSeconds(validUntil.getSeconds() + maxAge);
 				fs.promises.writeFile(cache_info_path, JSON.stringify({
 					last_modified: response.headers['last-modified'],
+					// valid_until:validUntil.toJSON()
 				}), { flag: 'w' });
 				return JSON.parse(response_body);
 			}
-			else {
-				console.error(`status code: ${response.statusCode}`);
-				return null;
-			}
 		}
-		else { // don't have cached version
-			if (debug) console.log('no cache file');
-			let [response, response_body] = await httpsGetPromise(request_url, request_options);
-			fs.promises.writeFile(cache_response_path, response_body, { flag: 'w' });
-			// let maxAge = parseFloat(response.headers['cache-control'].match(/max-age=(?<maxage>[0-9]+)/).groups.maxage);
-			// let validUntil = new Date();
-			// console.log(maxAge);
-			// validUntil.setSeconds(validUntil.getSeconds() + maxAge);
-			fs.promises.writeFile(cache_info_path, JSON.stringify({
-				last_modified: response.headers['last-modified'],
-				// valid_until:validUntil.toJSON()
-			}), { flag: 'w' });
-			return JSON.parse(response_body);
+		catch{
+			return null;
 		}
 	}
 
@@ -95,6 +100,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async get_matches_by_team_event(team_key, event_key) {
+		if(team_key == null) return null;
 		return (await this.tba_request(`team/${team_key}/event/${event_key}/matches`)).map(data => new Match(data));
 	}
 
@@ -105,6 +111,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async get_matches_by_team_event_simple(team_key, event_key) {
+		if(team_key == null || event_key == null) return null;
 		return (await this.tba_request(`team/${team_key}/event/${event_key}/matches/simple`)).map(data => new Match_Simple(data));
 	}
 
@@ -114,6 +121,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async get_matches_by_event(event_key) {
+		if(event_key == null) return null;
 		return (await this.tba_request(`event/${event_key}/matches`)).map(data => new Match(data));
 	}
 
@@ -123,6 +131,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async get_match(match_key){
+		if(match_key == null) return null;
 		return new Match(await this.tba_request(`match/${match_key}`));
 	}
 	
@@ -132,6 +141,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async get_match_simple(match_key){
+		if(match_key == null) return null;
 		return new Match_Simple(await this.tba_request(`match/${match_key}/simple`));
 	}
 
@@ -142,6 +152,7 @@ class TBA_API {
 	 * @memberof TBA_API
 	 */
 	async get_team_status_at_event(team_key, event_key){
+		if(team_key == null || event_key == null) return null;
 		return new Team_Event_Status(await this.tba_request(`team/${team_key}/event/${event_key}/status`));
 	}
 
@@ -150,6 +161,7 @@ class TBA_API {
 	}
 
 	async get_teams_by_page(page_num) {
+		if(page_num == null) return null;
 		return (await this.tba_request(`teams/${page_num}`)).map(data => new Team(data));
 	}
 }
